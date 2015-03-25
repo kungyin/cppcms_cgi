@@ -1,0 +1,16 @@
+GEN_DIR=../gen
+INCS_DIR= ../include
+
+CPPCMS_TMPL_CC=cppcms_tmpl_cc
+TMPL_CPP=../my_skin.cpp
+TMPL_DIR=../template
+
+CPP_SRCS += \
+$(TMPL_CPP)
+
+OBJS += \
+my_skin.o 
+
+TMPLS += \
+$(TMPL_DIR)/first.tmpl
+

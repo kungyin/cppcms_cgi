@@ -1,0 +1,3 @@
+#!/bin/bash
+mkdir gen 
+cppcms_tmpl_cc ./template/first.tmpl -o ./gen/my_skin.cpp
