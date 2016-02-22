@@ -1,5 +1,6 @@
 %.o: %.cpp
-	g++ -I$(INCS_DIR) -O3 -Wall -c -o "$@" "$<"
+	arm-linux-gnueabihf-g++ -I$(INCS_DIR) -O3 -Wall -c -o "$@" "$<"
+	#g++ -I$(INCS_DIR) -O3 -Wall -c -o "$@" "$<"
 	
 my_skin.cpp: $(TMPLS) ../include/content.h
 	$(CPPCMS_TMPL_CC)  $(TMPLS)  -o $@

@@ -7,7 +7,7 @@
 class PureView {
 public:
 
-	virtual void xmlOut() = 0;
+	virtual std::string xmlOut() = 0;
 	virtual ~PureView() {}
 
 protected:

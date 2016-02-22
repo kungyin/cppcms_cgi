@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -lcgicc -lbooster -lxml2 -lcppcms
+LIBS := -lbooster -lxml2 -lcppcms
 

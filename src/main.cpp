@@ -11,6 +11,11 @@
 #include <cppcms/service.h>
 #include <cppcms/http_response.h>
 #include <cppcms/http_request.h>
+#include <cppcms/session_interface.h>
+#include <cppcms/http_cookie.h>
+
+#include <booster/log.h>
+#include <booster/shared_ptr.h>
 
 #include <iostream>
 #include <map>
@@ -24,6 +29,7 @@
 using namespace std;
 
 const string CGI_PARA_CMD_NAME = "cmd";
+
 
 class cgiMain : public cppcms::application {
 public:
@@ -39,49 +45,78 @@ private:
 
 void cgiMain::main(std::string /*url*/)
 {
+	if(request().script_name().compare("/cgi-bin/login_mgr.cgi") != 0) {
+		cppcms::http::cookie my_cookie = request().cookie_by_name("username");
+		//std::string user = my_cookie.value();
 
-	string paraCmd = request().get(CGI_PARA_CMD_NAME);
-	if(!paraCmd.empty()) {
-		ParseCommand parse(paraCmd);
-		CGI_COMMAND cmd = parse.getCGICmd();
-//	map<string, string> m = request().getenv();
-//	cout << m.size() << endl;
-//	cout << request().request_method() << endl;
-//	cout << request().query_string() << endl;
-//	cout << request().content_type() << endl;
-//	cout << request().gateway_interface() << endl;
-//	cout << request().auth_type() << endl;
-//	cout << request().remote_addr() << endl;
-//	cout << request().http_accept () << endl;
-//	cout << request().post("cmd") << endl;
-//	cout << request().http_connection() << endl;
-
-//	cppcms::http::content_type a = request().content_type_parsed();
-//	cout << a.type() << endl;
-//	map<string, string> mm = request().content_type_parsed().parameters();
-//	cout << mm.size() << endl;
-
-	//cout << m.at(0) << endl;
-
-//    response().out() <<
-//        "<html>\n"
-//        "<body>\n"
-//        "  <h1>Hello World</h1>\n"
-//        "</body>\n"
-//        "</html>\n";
-
-	//string s = request().get("cmd");
-//    content::message c;
-//    c.text=" CGI command is:" + s;
-//    render("message",c);
-		HDConfigView cv(request(), cmd);
-		cv.xmlOut();
+		if(my_cookie.empty()) {
+			//BOOSTER_ERROR("script name") << request().script_name();
+			response().status(cppcms::http::response::not_found);
+			response().out();
+			return;
+		}
 	}
 
+	std::multimap<string, string> map = request().post_or_get();
+	std::multimap<string, string>::iterator it = map.find(CGI_PARA_CMD_NAME);
+	if(it != map.end()) {
+		string paraCmd = it->second;
+		ParseCommand parse(paraCmd);
+		CGI_COMMAND cmd = parse.getCGICmd();
+
+//		string s = request().get("cmd");
+//		    content::message c;
+//		    c.text=" CGI command is:" + s;
+//		    render("message",c);
+
+		HDConfigView cv(request(), cmd);
+		string responseOut = cv.xmlOut();
+
+		response().io_mode(cppcms::http::response::nogzip);
+		if(!cv.isStrOut())
+			response().set_content_header("text/xml");
+
+		if(paraCmd.compare("login") == 0) {
+			string name = cv.getUsername();
+			int age = 0;
+			if(!name.empty())
+				age = 31536000;
+
+			cppcms::http::cookie cookieName("uname", map.find("username")->second, age, "/");
+			response().set_cookie(cookieName);
+			cppcms::http::cookie cookieRem("rembMe", "checked", age, "/");
+			response().set_cookie(cookieRem);
+			cppcms::http::cookie cookiePw("password", map.find("pwd")->second, age, "/");
+			response().set_cookie(cookiePw);
+
+			int status = cv.getLoginStatus();
+			if(status == 1) {
+				cppcms::http::cookie c("username", map.find("username")->second, 0, "/");
+				c.browser_age();
+				response().set_cookie(c);
+				response().set_redirect_header("../web/home.html?v=8401878");
+			}
+			else if(status == 0){
+				response().set_redirect_header("../web/relogin.html");
+			}
+		}
+		else if(paraCmd.compare("logout") == 0) {
+			response().set_redirect_header("..");
+		}
+
+		response().out() << responseOut;
+	}
 }
 
 int main(int argc,char ** argv)
 {
+    booster::shared_ptr<booster::log::sinks::file> f(new booster::log::sinks::file());
+    f->append();
+    f->max_files(10);
+    f->open("/tmp/test.log");
+    booster::log::logger::instance().add_sink(f);
+    booster::log::logger::instance().set_default_level(booster::log::notice);
+
     try {
         cppcms::service srv(argc,argv);
         srv.applications_pool().mount(
